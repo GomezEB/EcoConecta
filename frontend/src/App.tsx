@@ -120,7 +120,7 @@ function Admin() {
   const [preference, setPreference] = useState('Mañana en la tarde')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [rule, setRule] = useState('1')
+  const [rule, setRuleValue] = useState('1')
   const [ruleName, setRuleName] = useState('Regla provisional DEMO; pendiente validación FSD')
   const load = async () => {
     try { setSummary(await api<Summary>('/api/admin/resumen')); setCitizens(await api<Citizen[]>('/api/ciudadanos')) }
@@ -135,7 +135,7 @@ function Admin() {
   }
   async function createRequest(e: FormEvent) {
     e.preventDefault();setError('');setSuccess('')
-    try {const p=await post<{id:number}>('/api/solicitudes',{ciudadano_id:Number(citizenId),flujo,preferencia_horaria:preference,observaciones:'Prueba desde panel administrativo'});
+    try {const p=await post<{id:number}>('/api/solicitudes',{ciudadano_id:Number(citizenId),flujo:flow,preferencia_horaria:preference,observaciones:'Prueba desde panel administrativo'});
       setSuccess(`Solicitud de prueba #${p.id} registrada. Ve a Bandeja.`);await load()}
     catch(err){setError(err instanceof Error?err.message:'Error')}
   }
@@ -173,7 +173,7 @@ function Admin() {
       </form>
       <form onSubmit={setRule} className="card space-y-3"><h3 className="text-lg font-bold">Regla de puntos — DEMO</h3>
         <p className="text-sm text-amber-800">No es un valor oficial de Fundación Santo Domingo. Solo se otorgan puntos después de la recolección.</p>
-        <div><label className="label">Puntos por recolección completada</label><input className="input" type="number" min="0" max="10000" value={rule} onChange={e=>setRule(e.target.value)} /></div>
+        <div><label className="label">Puntos por recolección completada</label><input className="input" type="number" min="0" max="10000" value={rule} onChange={e=>setRuleValue(e.target.value)} /></div>
         <div><label className="label">Nombre de la regla</label><input className="input" value={ruleName} onChange={e=>setRuleName(e.target.value)} /></div>
         <button className="btn-secondary">Guardar regla de demostración</button>
       </form>
