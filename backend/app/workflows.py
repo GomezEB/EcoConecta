@@ -1,8 +1,13 @@
+from decimal import Decimal
 from fastapi import HTTPException
 
 ROLES_COORDINACION = {"organicos": "coordinador_huerta", "reciclables": "coordinador_reciclaje"}
 ROLES_RECOLECCION = {"organicos": "huertero", "reciclables": "reciclador"}
 ESTADOS = ("recibida", "en_revision", "asignada", "programada", "recolectada", "cancelada", "rechazada")
+
+def calculate_points(weight_kg: Decimal, points_per_kg: int) -> int:
+    """Calcula puntos enteros proporcionalmente; las fracciones se redondean hacia abajo."""
+    return int(weight_kg * points_per_kg)
 
 def validate_flow(flow: str) -> None:
     if flow not in ROLES_COORDINACION:

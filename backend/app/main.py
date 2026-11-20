@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app import models  # importa tablas para create_all
 from app.config import CORS_ORIGINS
 from app.db import Base, engine
@@ -9,7 +10,12 @@ from app.routers import auth, operacion, reportes, webhook
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # MVP inicial: crear tablas vacías. No sustituye migraciones versionadas en producción.
-    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        Base.metadata.create_all(connection)
+        connection.execute(text(
+            "ALTER TABLE reglas_puntos ADD COLUMN IF NOT EXISTS "
+            "puntos_por_kg INTEGER NOT NULL DEFAULT 2"
+        ))
     yield
 
 app = FastAPI(title="EcoConecta API — MVP oficial", version="0.1.0", lifespan=lifespan)

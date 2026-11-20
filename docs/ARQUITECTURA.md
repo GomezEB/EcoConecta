@@ -21,6 +21,7 @@ flowchart TD
 - `coordinador_reciclaje`: revisar, asignar y programar **reciclables**.
 - `reciclador`: cerrar solamente tareas reciclables que tenga asignadas.
 - `administrador`: panel de informes, ciudadanía piloto y regla de puntos.
+- La regla de puntos del piloto se configura como puntos por kg. Solo al confirmar una recolección en kg se calcula el puntaje proporcional; las fracciones se redondean hacia abajo a puntos enteros.
 
 Durante el piloto una persona puede tener 2 roles (ej.: `coordinador_huerta` y `huertero`); **cada evento guarda el actor y la acción**. No se autoprograman las recolecciones.
 

@@ -40,8 +40,7 @@ function RequestCard({item, me, people, onUpdate}: {item: RequestItem; me: Me; p
   const collector = me.roles.includes(collRole) && item.recolector_id === me.id
   const [selection, setSelection] = useState(String(item.recolector_id || ''))
   const [schedule, setSchedule] = useState('')
-  const [amount, setAmount] = useState('1')
-  const [unit, setUnit] = useState('bolsas')
+  const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
   const eligible = people.filter(p => p.roles.includes(collRole))
@@ -49,7 +48,12 @@ function RequestCard({item, me, people, onUpdate}: {item: RequestItem; me: Me; p
     setBusy(true); setFeedback('')
     try {
       const result = await post<Record<string, unknown>>(`/api/solicitudes/${item.id}/${path}`, body)
-      setFeedback(result.whatsapp_notificado === false && path === 'programar' ? 'Programada. Aviso WhatsApp pendiente de credenciales Meta.' : 'Operación guardada.')
+      const notice = result.whatsapp_notificado === false ? ' No se pudo enviar el aviso por WhatsApp; revisa las credenciales de Meta.' : ''
+      setFeedback(path === 'recolectar' && typeof result.puntos === 'number'
+        ? `Recolección confirmada. Se registraron ${result.puntos} puntos.${notice}`
+        : result.whatsapp_notificado === false && path === 'programar'
+          ? `Programada.${notice}`
+          : `Operación guardada.${notice}`)
       onUpdate()
     } catch (err) { setFeedback(err instanceof Error ? err.message : 'No se pudo actualizar') }
     finally { setBusy(false) }
@@ -78,9 +82,8 @@ function RequestCard({item, me, people, onUpdate}: {item: RequestItem; me: Me; p
       <button className="btn-primary" disabled={busy || !schedule} onClick={() => action('programar', {fecha_hora: new Date(schedule).toISOString()})}>Confirmar programación</button>
     </div>}
     {collector && item.estado === 'programada' && <div className="flex flex-wrap gap-2">
-      <input aria-label="Cantidad" className="input max-w-28" type="number" min="0" step="0.1" value={amount} onChange={e=>setAmount(e.target.value)} />
-      <select aria-label="Unidad" className="input max-w-40" value={unit} onChange={e=>setUnit(e.target.value)}><option value="bolsas">Bolsas</option><option value="kg">kg</option><option value="unidades">Unidades</option></select>
-      <button className="btn-primary" disabled={busy || !amount} onClick={()=>action('recolectar', {cantidad_recibida: Number(amount), unidad: unit})}>Confirmar recogida</button>
+      <label className="flex items-center gap-2 text-sm"><span>Peso recogido (kg)</span><input aria-label="Peso recogido en kilogramos" className="input max-w-32" type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} /></label>
+      <button className="btn-primary" disabled={busy || !amount || Number(amount) <= 0} onClick={()=>action('recolectar', {cantidad_recibida: Number(amount), unidad: 'kg'})}>Confirmar recogida</button>
     </div>}
     {feedback && <p aria-live="polite" className="rounded-xl bg-slate-100 p-3 text-sm">{feedback}</p>}
   </article>
@@ -111,7 +114,7 @@ function Dashboard({me}: {me: Me}) {
 function Admin() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [citizens, setCitizens] = useState<Citizen[]>([])
-  const [phone, setPhone] = useState('573001234567')
+  const [phone, setPhone] = useState('')
   const [name, setName] = useState('Vecino de prueba')
   const [address, setAddress] = useState('Villas de San Pablo, Manzana 4, Casa 12')
   const [generator, setGenerator] = useState('hogar')
@@ -120,7 +123,7 @@ function Admin() {
   const [preference, setPreference] = useState('Mañana en la tarde')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [rule, setRuleValue] = useState('1')
+  const [rule, setRule] = useState('2')
   const [ruleName, setRuleName] = useState('Regla provisional DEMO; pendiente validación FSD')
   const load = async () => {
     try { setSummary(await api<Summary>('/api/admin/resumen')); setCitizens(await api<Citizen[]>('/api/ciudadanos')) }
@@ -135,12 +138,12 @@ function Admin() {
   }
   async function createRequest(e: FormEvent) {
     e.preventDefault();setError('');setSuccess('')
-    try {const p=await post<{id:number}>('/api/solicitudes',{ciudadano_id:Number(citizenId),flujo:flow,preferencia_horaria:preference,observaciones:'Prueba desde panel administrativo'});
+    try {const p=await post<{id:number}>('/api/solicitudes',{ciudadano_id:Number(citizenId),flujo,preferencia_horaria:preference,observaciones:'Prueba desde panel administrativo'});
       setSuccess(`Solicitud de prueba #${p.id} registrada. Ve a Bandeja.`);await load()}
     catch(err){setError(err instanceof Error?err.message:'Error')}
   }
   async function setRule(e:FormEvent){e.preventDefault();setError('');setSuccess('');
-    try {await api('/api/admin/regla-puntos',{method:'PUT',body:JSON.stringify({puntos_por_solicitud:Number(rule),nombre:ruleName})});setSuccess('Regla demostrativa actualizada')}
+    try {await api('/api/admin/regla-puntos',{method:'PUT',body:JSON.stringify({puntos_por_kg:Number(rule),nombre:ruleName})});setSuccess('Regla demostrativa actualizada')}
     catch(err){setError(err instanceof Error?err.message:'Error')}
   }
   async function csvDownload(){
@@ -158,9 +161,9 @@ function Admin() {
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
       <form onSubmit={createCitizen} className="card space-y-3"><h3 className="text-lg font-bold">1. Ciudadano de prueba</h3>
-        <p className="text-sm text-slate-500">Utiliza información ficticia; no envía datos a WhatsApp.</p>
+        <p className="text-sm text-slate-500">Para probar WhatsApp real, usa un teléfono receptor autorizado en Meta. La solicitud de demostración no envía mensajes al crearla.</p>
         <div><label className="label">Nombre</label><input className="input" value={name} onChange={e=>setName(e.target.value)} required/></div>
-        <div><label className="label">Teléfono ficticio</label><input className="input" value={phone} onChange={e=>setPhone(e.target.value)} required/></div>
+        <div><label className="label">Teléfono del ciudadano</label><input className="input" type="tel" placeholder="Número autorizado en Meta" value={phone} onChange={e=>setPhone(e.target.value)} required/></div>
         <div><label className="label">Dirección</label><input className="input" value={address} onChange={e=>setAddress(e.target.value)} required/></div>
         <div><label className="label">Tipo de generador</label><select className="input" value={generator} onChange={e=>setGenerator(e.target.value)}><option value="hogar">Hogar</option><option value="unidad_productiva">Unidad productiva</option></select></div>
         <button className="btn-primary">Crear ciudadano de prueba</button>
@@ -172,8 +175,8 @@ function Admin() {
         <button className="btn-primary">Crear solicitud</button>
       </form>
       <form onSubmit={setRule} className="card space-y-3"><h3 className="text-lg font-bold">Regla de puntos — DEMO</h3>
-        <p className="text-sm text-amber-800">No es un valor oficial de Fundación Santo Domingo. Solo se otorgan puntos después de la recolección.</p>
-        <div><label className="label">Puntos por recolección completada</label><input className="input" type="number" min="0" max="10000" value={rule} onChange={e=>setRuleValue(e.target.value)} /></div>
+        <p className="text-sm text-amber-800">No es un valor oficial de Fundación Santo Domingo. Los puntos se calculan sobre los kg pesados y registrados al confirmar la recolección.</p>
+        <div><label className="label">Puntos por kilogramo</label><input className="input" type="number" min="0" max="10000" value={rule} onChange={e=>setRule(e.target.value)} /></div>
         <div><label className="label">Nombre de la regla</label><input className="input" value={ruleName} onChange={e=>setRuleName(e.target.value)} /></div>
         <button className="btn-secondary">Guardar regla de demostración</button>
       </form>

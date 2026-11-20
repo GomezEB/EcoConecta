@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
@@ -49,7 +50,7 @@ class Solicitud(Base):
     coordinador_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios_internos.id"), nullable=True)
     recolector_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios_internos.id"), nullable=True)
     programada_para: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    cantidad_recibida: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    cantidad_recibida: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     unidad: Mapped[str | None] = mapped_column(String(30), nullable=True)
     creada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     actualizada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
@@ -66,7 +67,8 @@ class Evento(Base):
 class ReglaPuntos(Base):
     __tablename__ = "reglas_puntos"
     id: Mapped[int] = mapped_column(primary_key=True)
-    puntos_por_solicitud: Mapped[int] = mapped_column(Integer, default=1)
+    puntos_por_solicitud: Mapped[int] = mapped_column(Integer, default=1)  # Legacy column retained for existing MVP databases.
+    puntos_por_kg: Mapped[int] = mapped_column(Integer, default=2)
     activa: Mapped[bool] = mapped_column(Boolean, default=False)
     nombre: Mapped[str] = mapped_column(String(150), default="Regla provisional por validar con FSD")
 

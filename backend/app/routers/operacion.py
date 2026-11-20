@@ -6,7 +6,7 @@ from app import models
 from app.db import get_db
 from app.schemas import CiudadanoIn, SolicitudIn, AsignacionIn, ProgramacionIn, RecoleccionIn, ReglaPuntosIn
 from app.security import current_user, require_role, user_roles
-from app.workflows import ROLES_COORDINACION, ROLES_RECOLECCION, move_state
+from app.workflows import ROLES_COORDINACION, ROLES_RECOLECCION, calculate_points, move_state
 from app.services.whatsapp import send_message
 
 router = APIRouter(prefix="/api", tags=["operación"])
@@ -163,17 +163,25 @@ async def recolectar(request_id: int, payload: RecoleccionIn, user: models.Usuar
     if req.recolector_id != user.id or ROLES_RECOLECCION[req.flujo] not in user_roles(db, user.id):
         raise HTTPException(403, "Solo el encargado asignado puede registrar esta recolección")
     req.estado = move_state(req.estado, "recolectada")
-    req.cantidad_recibida, req.unidad = payload.cantidad_recibida, payload.unidad
-    db.add(models.Evento(solicitud_id=req.id, actor_id=user.id, accion="recolectada", detalle=f"{payload.cantidad_recibida} {payload.unidad}"))
+    weight_kg = payload.cantidad_recibida
+    req.cantidad_recibida, req.unidad = weight_kg, payload.unidad
+    db.add(models.Evento(solicitud_id=req.id, actor_id=user.id, accion="recolectada", detalle=f"{weight_kg} {payload.unidad}"))
     active_rule = db.scalar(select(models.ReglaPuntos).where(models.ReglaPuntos.activa.is_(True)).order_by(models.ReglaPuntos.id.desc()))
     points = 0
     if active_rule:
-        # Un índice único por solicitud impide duplicar puntos.
-        points = active_rule.puntos_por_solicitud
+        points = calculate_points(weight_kg, active_rule.puntos_por_kg)
         db.add(models.MovimientoPuntos(ciudadano_id=req.ciudadano_id, solicitud_id=req.id, regla_id=active_rule.id, puntos=points))
     db.commit()
     citizen = db.get(models.Ciudadano, req.ciudadano_id)
-    sent = await send_message(citizen.telefono, f"EcoConecta: recolección #{req.id} confirmada. Puntos registrados: {points} (regla de piloto provisional). Gracias por participar.")
+    if active_rule:
+        message = (f"¡Listo! Confirmamos la recolección #{req.id}: {weight_kg} kg. "
+                   f"Sumaste {points} puntos ({active_rule.puntos_por_kg} por kg). "
+                   "¡Gracias por ayudar a cuidar nuestra comunidad! ♻️")
+    else:
+        message = (f"¡Listo! Confirmamos la recolección #{req.id}: {weight_kg} kg. "
+                   "Aún no hay una regla de puntos activa para esta recolección. "
+                   "¡Gracias por ayudar a cuidar nuestra comunidad! ♻️")
+    sent = await send_message(citizen.telefono, message)
     return {"id": req.id, "estado": req.estado, "puntos": points, "whatsapp_notificado": sent}
 
 
@@ -190,7 +198,7 @@ def resumen(user: models.Usuario = Depends(current_user), db: Session = Depends(
 def ver_regla(user: models.Usuario = Depends(current_user), db: Session = Depends(get_db)):
     require_role(db, user, "administrador")
     rule = db.scalar(select(models.ReglaPuntos).where(models.ReglaPuntos.activa.is_(True)))
-    return {"id": rule.id, "puntos_por_solicitud": rule.puntos_por_solicitud, "nombre": rule.nombre} if rule else {"nombre": "Sin regla activa", "puntos_por_solicitud": None}
+    return {"id": rule.id, "puntos_por_kg": rule.puntos_por_kg, "nombre": rule.nombre} if rule else {"nombre": "Sin regla activa", "puntos_por_kg": None}
 
 
 @router.put("/admin/regla-puntos")
@@ -201,4 +209,4 @@ def cambiar_regla(payload: ReglaPuntosIn, user: models.Usuario = Depends(current
     new_rule = models.ReglaPuntos(**payload.model_dump(), activa=True)
     db.add(new_rule)
     db.commit()
-    return {"id": new_rule.id, "nombre": new_rule.nombre, "puntos_por_solicitud": new_rule.puntos_por_solicitud}
+    return {"id": new_rule.id, "nombre": new_rule.nombre, "puntos_por_kg": new_rule.puntos_por_kg}

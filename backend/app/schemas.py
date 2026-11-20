@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
@@ -27,9 +28,9 @@ class ProgramacionIn(BaseModel):
     fecha_hora: datetime
 
 class RecoleccionIn(BaseModel):
-    cantidad_recibida: float = Field(ge=0)
-    unidad: Literal["kg", "bolsas", "unidades"]
+    cantidad_recibida: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    unidad: Literal["kg"] = "kg"
 
 class ReglaPuntosIn(BaseModel):
-    puntos_por_solicitud: int = Field(ge=0, le=10000)
+    puntos_por_kg: int = Field(ge=0, le=10000)
     nombre: str = Field(min_length=3, max_length=150)

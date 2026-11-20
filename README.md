@@ -75,9 +75,11 @@ docker compose down
 
 ## Cómo funciona WhatsApp
 
-Integración por webhook exclusivo de **Meta WhatsApp Business Cloud API**. Configura en `.env` las variables `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` y el Graph API correspondiente. El proveedor debe acceder a una URL **HTTPS pública** como `https://TU-DOMINIO/webhooks/whatsapp`. `localhost` no funciona como webhook público. No se incluyen credenciales.
+Integración por webhook exclusivo de **Meta WhatsApp Business Cloud API**. En Meta for Developers, usa el número de prueba y el `Phone Number ID` que aparecen en la configuración de WhatsApp de tu app, y agrega el teléfono desde el que harás la prueba a los destinatarios permitidos. No existe un número de prueba universal que se pueda fijar en el código. Configura en `.env` `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN` y `WHATSAPP_PHONE_NUMBER_ID`. Luego registra `https://TU-DOMINIO/webhooks/whatsapp` como webhook HTTPS, usa el mismo token de verificación y suscribe el campo `messages`. `localhost` no funciona como webhook público. No se incluyen credenciales.
 
-Mensajes `texto` se guían con un diálogo de preguntas y consentimiento. `audio` requiere clave `OPENAI_API_KEY` y transcripción; `imagen` admite sugerencia de categoría con OpenAI y confirmación humana. Al programar/cerrar, el sistema intenta avisar por WhatsApp cuando la integración está configurada. La asignación final, día/hora y cierre siempre son humanos.
+Desde ese teléfono autorizado, escribe al número de prueba de Meta para iniciar una conversación; el webhook registra el teléfono de origen y recibe la solicitud. El asistente conversa en lenguaje natural, solicita los datos necesarios y consentimiento, y envía la solicitud a la bandeja del coordinador correspondiente (huerta para orgánicos, reciclaje para reciclables). El coordinador asigna internamente a una persona y confirma el horario; quien realiza la recolección registra el peso en kg. Al cerrar, el sistema calcula los puntos según la regla activa y responde al mismo teléfono que originó la solicitud.
+
+Mensajes `texto` se guían con un diálogo de preguntas y consentimiento. `audio` requiere clave `OPENAI_API_KEY` y transcripción; `imagen` admite sugerencia de categoría con OpenAI y confirmación humana. Al programar/cerrar, el sistema intenta avisar por WhatsApp cuando la integración está configurada. La asignación final, día/hora, peso y cierre siempre son humanos.
 
 > Sin credenciales de Meta ni OpenAI puedes probar el flujo principal desde «Fundación / Demo». **Eso no equivale a una conexión real de WhatsApp.** Una notificación no enviada devuelve `whatsapp_notificado: false`.
 
@@ -86,7 +88,7 @@ Mensajes `texto` se guían con un diálogo de preguntas y consentimiento. `audio
 - **Sí:** PostgreSQL, login interno, roles por colectivo, creación demo de solicitudes, revisión, asignación, programación humana, cierre humano, regla de puntos configurable, historial, reporte CSV, guía ambiental y adaptador de WhatsApp.
 - **Condicionado a credenciales y despliegue:** recepción real WhatsApp, descarga y análisis de imágenes, transcripción de audios, confirmaciones salientes.
 - **No implementado todavía:** respuesta por audio hablado, publicación en nube, almacenamiento duradero de imágenes, migración automática de SQLite, migraciones versionadas o auditoría avanzada.
-- Los puntos de ejemplo son **provisionales y no oficiales**; se activan manualmente en el panel Fundación.
+- Los puntos de ejemplo (2 puntos por kg como valor inicial sugerido) son **provisionales y no oficiales**; se activan al guardar la regla en el panel Fundación. Se otorgan únicamente al confirmar el peso en kg; las fracciones se calculan proporcionalmente y se redondean hacia abajo a puntos enteros.
 - Esta plantilla es un punto de partida, **no una entrega completa certificada ni una aplicación en producción**.
 
 ## GitHub y entrega
