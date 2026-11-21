@@ -1,37 +1,13 @@
+
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { api, post, clearToken, getToken, setToken, type Person, type Citizen, type RequestItem } from './api'
+import { api, post, clearToken, getToken, type Person, type Citizen, type RequestItem } from './api'
+import Login from './components/login'
 
 type Me = {id: number; nombre: string; correo: string; roles: string[]}
 type Summary = {total: number; por_flujo: Record<string, number>; por_estado: Record<string, number>; puntos: number}
 const has = (me: Me | null, roles: string[]) => Boolean(me?.roles.some(r => roles.includes(r)))
 const friendlyFlow = (flow: string) => flow === 'organicos' ? 'Orgánicos 🌱' : 'Reciclables ♻️'
 
-function Login({onLogin}: {onLogin: () => void}) {
-  const [email, setEmail] = useState('')
-  const [pass, setPass] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const submit = async (e: FormEvent) => {
-    e.preventDefault(); setBusy(true); setError('')
-    try {
-      const r = await post<{token: string}>('/api/auth/login', {correo: email, contrasena: pass})
-      setToken(r.token); onLogin()
-    } catch (err) { setError(err instanceof Error ? err.message : 'No fue posible ingresar') }
-    finally { setBusy(false) }
-  }
-  return <main className="mx-auto flex min-h-screen max-w-lg items-center px-4 py-12">
-    <div className="card w-full space-y-5">
-      <div className="text-center"><span className="text-5xl">♻️</span><h1 className="text-3xl font-bold text-eco-900">EcoConecta</h1>
-        <p className="text-sm text-slate-500">Villas de San Pablo · Panel de operación</p></div>
-      <form onSubmit={submit} className="space-y-4">
-        <div><label className="label">Correo del encargado</label><input className="input" type="email" required value={email} onChange={e=>setEmail(e.target.value)} /></div>
-        <div><label className="label">Contraseña</label><input className="input" type="password" required value={pass} onChange={e=>setPass(e.target.value)} /></div>
-        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-        <button disabled={busy} className="btn-primary w-full">{busy ? 'Validando...' : 'Iniciar sesión'}</button>
-      </form><p className="text-xs text-slate-500">Las personas de la comunidad solicitan la recolección desde WhatsApp. Las cuentas de este panel se crean administrativamente.</p>
-    </div>
-  </main>
-}
 
 function RequestCard({item, me, people, onUpdate}: {item: RequestItem; me: Me; people: Person[]; onUpdate: () => void}) {
   const coordRole = item.flujo === 'organicos' ? 'coordinador_huerta' : 'coordinador_reciclaje'
