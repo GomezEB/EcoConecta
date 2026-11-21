@@ -207,7 +207,7 @@ export default function App() {
   return <div className="min-h-screen bg-slate-50">
     <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4">
       <div><div className="text-xl font-extrabold text-eco-900">♻️ EcoConecta</div><p className="text-xs text-slate-500">Villas de San Pablo · Operación comunitaria</p></div>
-      <div className="flex items-center gap-3"><p className="max-w-48 truncate text-sm">{me.nombre}</p><button className="btn-secondary" onClick={()=>{clearToken();setMe(null)}}>Salir</button></div>
+      <div className="flex items-center gap-3"><p className="max-w-48 truncate text-sm">{me.nombre}</p><button className="btn-secondary" onClick={()=>{void api('/api/auth/logout', {method:'POST'}).catch(()=>undefined); clearToken();setMe(null)}}>Salir</button></div>
     </div></header>
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
       <nav className="flex flex-wrap gap-2" aria-label="Secciones">

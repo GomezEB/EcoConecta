@@ -1,0 +1,52 @@
+name: EcoConecta - Integracion continua
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias frontend
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Comprobar TypeScript y Vite
+        working-directory: frontend
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ecoconecta
+          POSTGRES_PASSWORD: ci_test_only_password
+          POSTGRES_DB: ecoconecta_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ecoconecta -d ecoconecta_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: postgresql+psycopg://ecoconecta:ci_test_only_password@localhost:5432/ecoconecta_test
+      ECO_TEST_DATABASE_URL: postgresql+psycopg://ecoconecta:ci_test_only_password@localhost:5432/ecoconecta_test
+      PYTHONPATH: backend
+      WHATSAPP_ACCESS_TOKEN: ''
+      WHATSAPP_PHONE_NUMBER_ID: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias y pytest
+        run: pip install -r backend/requirements-dev.txt
+      - name: Probar reglas, intenciones y recorridos reales con PostgreSQL
+        run: pytest -q tests

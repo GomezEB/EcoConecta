@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+import hashlib
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app import models
@@ -21,6 +22,15 @@ def me(user: models.Usuario = Depends(current_user), db: Session = Depends(get_d
     return {"id": user.id, "nombre": user.nombre, "correo": user.correo, "roles": sorted(user_roles(db, user.id))}
 
 @router.post("/logout")
-def logout(user: models.Usuario = Depends(current_user), db: Session = Depends(get_db), authorization: str | None = None):
-    # La aplicación cliente elimina el token; la invalidación en servidor puede realizarse mediante cabecera en una iteración posterior.
+def logout(user: models.Usuario = Depends(current_user), db: Session = Depends(get_db),
+           authorization: str | None = Header(default=None)):
+    """Invalida en PostgreSQL la sesión concreta asociada al token presentado."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    session = db.get(models.Sesion, token_hash)
+    # current_user ya validó el token; conservar el chequeo defensivo del propietario.
+    if not session or session.usuario_id != user.id:
+        raise HTTPException(401, "Sesión inválida")
+    db.delete(session)
+    db.commit()
     return {"ok": True}

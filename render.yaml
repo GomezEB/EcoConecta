@@ -1,0 +1,29 @@
+# Render Blueprint: 1 web Docker + 1 PostgreSQL. No almacena secretos.
+services:
+  - type: web
+    name: ecoconecta-hackathon
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.render
+    healthCheckPath: /api/salud
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecoconecta-db
+          property: connectionString
+      # El frontend llama a /api/ en el MISMO origen vía Nginx. CORS no necesita
+      # suponer un subdominio Render que puede cambiar durante la creación.
+      - key: PILOTO_ABIERTO
+        value: "false"
+      - key: SESSION_HOURS
+        value: "12"
+      - key: DEMO_SEED_ENABLED
+        value: "false"
+      # Las credenciales DEMO_* y META/OPENAI se registran EN EL PANEL DE RENDER,
+      # no aqui ni en GitHub. Ver docs/GUIA_DESPLIEGUE.md.
+
+databases:
+  - name: ecoconecta-db
+    databaseName: ecoconecta
+    user: ecoconecta
+    plan: free
